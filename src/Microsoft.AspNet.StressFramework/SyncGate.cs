@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace Microsoft.AspNet.StressFramework
 {
@@ -23,7 +20,7 @@ namespace Microsoft.AspNet.StressFramework
         {
         }
 
-        private SyncGate(string name)
+        public SyncGate(string name)
         {
             // Create a named semaphore
             Name = name;
@@ -43,7 +40,7 @@ namespace Microsoft.AspNet.StressFramework
             }
         }
 
-        private void Wait()
+        public void Wait()
         {
             _sem.WaitOne();
         }

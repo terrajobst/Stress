@@ -5,21 +5,21 @@ using System.Reflection;
 
 namespace Microsoft.AspNet.StressFramework
 {
-    internal class StressTestHostProcess
+    internal class StressTestHostProcess : IDisposable
     {
-        private SyncGate _syncGate;
+        public SyncGate SyncGate { get; }
 
         public Process Process { get; }
 
         public StressTestHostProcess(SyncGate syncGate, Process process)
         {
-            _syncGate = syncGate;
+            SyncGate = syncGate;
             Process = process;
         }
 
         public void BeginIterations()
         {
-            _syncGate.Release();
+            SyncGate.Release();
         }
 
         internal static StressTestHostProcess Launch(string assembly, string type, string method)
@@ -47,6 +47,11 @@ namespace Microsoft.AspNet.StressFramework
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
             return new StressTestHostProcess(syncGate, process);
+        }
+
+        public void Dispose()
+        {
+            Process.Dispose();
         }
     }
 }

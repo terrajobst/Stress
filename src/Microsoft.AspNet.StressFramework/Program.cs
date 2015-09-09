@@ -2,7 +2,6 @@
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
-using Microsoft.Dnx.Runtime;
 
 namespace Microsoft.AspNet.StressFramework
 {
@@ -11,7 +10,7 @@ namespace Microsoft.AspNet.StressFramework
         public int Main(string[] args)
         {
             Console.WriteLine($"[Host:{Process.GetCurrentProcess().Id}] Host Launched");
-            if(args.Length != 4)
+            if (args.Length != 4)
             {
                 Console.Error.WriteLine("Usage: stresshost <LOCK_NAME> <TEST_LIBRARY> <TEST_CLASS> <TEST_METHOD>");
                 return -1;
@@ -24,22 +23,24 @@ namespace Microsoft.AspNet.StressFramework
 
             // Find the class
             var asm = Assembly.Load(new AssemblyName(libraryName));
-            if (asm == null) {
+            if (asm == null)
+            {
                 Console.Error.WriteLine($"Failed to load assembly: {libraryName}");
                 return -2;
             }
             var typ = asm.GetExportedTypes().FirstOrDefault(t => t.FullName.Equals(className));
-            if (typ == null) {
+            if (typ == null)
+            {
                 Console.Error.WriteLine($"Failed to locate type: {className} in {libraryName}");
                 return -3;
             }
             var method = typ.GetMethods()
-                .SingleOrDefault(m => 
-                    m.Name.Equals(methodName) && 
-                    typeof(IStressTestHost).IsAssignableFrom(m.ReturnType) && 
-                    m.IsPublic && 
+                .SingleOrDefault(m =>
+                    m.Name.Equals(methodName) &&
+                    typeof(StressRunSetup).IsAssignableFrom(m.ReturnType) &&
+                    m.IsPublic &&
                     m.GetParameters().Length == 0);
-            if(method == null)
+            if (method == null)
             {
                 Console.Error.WriteLine($"Failed to locate method: {methodName} in {className}");
                 return -4;
@@ -47,13 +48,21 @@ namespace Microsoft.AspNet.StressFramework
 
             // Construct the class and invoke the method
             var instance = Activator.CreateInstance(typ);
-            var host = (IStressTestHost)method.Invoke(instance, new object[0]);
+            var setup = (StressRunSetup)method.Invoke(instance, new object[0]);
 
-            SyncGate.WaitFor(lockName);
+            var context = new StressTestHostContext
+            {
+                Iterations = setup.HostIterations,
+                WarmupIterations = setup.WarmupIterations
+            };
+            setup.Host.Setup(context);
+
+            var syncGate = new SyncGate(lockName);
+            syncGate.Wait();
 
             // Run the host
             Console.WriteLine($"[Host:{Process.GetCurrentProcess().Id}] Host Released");
-            host.Run(new StressTestHostContext());
+            setup.Host.Run(context);
 
             Console.WriteLine($"[Host:{Process.GetCurrentProcess().Id}] Host Completed");
             return 0;
